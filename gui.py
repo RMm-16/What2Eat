@@ -1,5 +1,7 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
+
+from backend import IngredientCategory, Pantry, PantryDatabase, Unit
 
 
 class What2EatGUI:
@@ -8,9 +10,12 @@ class What2EatGUI:
         self.root.title("What2Eat")
         self.root.geometry("1000x700")
         self.root.minsize(800, 600)
+        self.database = PantryDatabase("pantry.json")
+        self.pantry = self.database.load_pantry()
 
         self._configure_styles()
         self._build_layout()
+        self._refresh_pantry_table()
 
     def _configure_styles(self) -> None:
         style = ttk.Style()
@@ -98,7 +103,7 @@ class What2EatGUI:
         self.category_combo.grid(row=1, column=3, sticky="ew", padx=(0, 8), pady=(4, 0))
         self.category_combo.set("vegetable")
 
-        ttk.Button(input_row, text="Add Item", style="Primary.TButton").grid(
+        ttk.Button(input_row, text="Add Item", style="Primary.TButton", command=self._on_add_item).grid(
             row=1, column=4, sticky="ew", pady=(4, 0)
         )
 
@@ -121,8 +126,18 @@ class What2EatGUI:
         controls.grid(row=2, column=0, sticky="ew", pady=(10, 0))
 
         ttk.Button(controls, text="Edit Selected", style="Secondary.TButton").pack(side="left")
-        ttk.Button(controls, text="Remove Selected", style="Secondary.TButton").pack(side="left", padx=8)
-        ttk.Button(controls, text="Clear Pantry", style="Secondary.TButton").pack(side="left")
+        ttk.Button(
+            controls,
+            text="Remove Selected",
+            style="Secondary.TButton",
+            command=self._on_remove_selected,
+        ).pack(side="left", padx=8)
+        ttk.Button(
+            controls,
+            text="Clear Pantry",
+            style="Secondary.TButton",
+            command=self._on_clear_pantry,
+        ).pack(side="left")
 
     def _build_actions_section(self, parent: ttk.Frame) -> None:
         actions_frame = ttk.LabelFrame(parent, text="Meal Generation", padding=12)
@@ -157,10 +172,10 @@ class What2EatGUI:
         ttk.Button(actions_frame, text="Generate Meals", style="Primary.TButton").grid(
             row=7, column=0, sticky="ew", pady=(18, 8)
         )
-        ttk.Button(actions_frame, text="Save Pantry", style="Secondary.TButton").grid(
+        ttk.Button(actions_frame, text="Save Pantry", style="Secondary.TButton", command=self._on_save_pantry).grid(
             row=8, column=0, sticky="ew", pady=(0, 8)
         )
-        ttk.Button(actions_frame, text="Load Pantry", style="Secondary.TButton").grid(
+        ttk.Button(actions_frame, text="Load Pantry", style="Secondary.TButton", command=self._on_load_pantry).grid(
             row=9, column=0, sticky="ew"
         )
 
@@ -187,6 +202,76 @@ class What2EatGUI:
         self.preview_text = tk.Text(preview_frame, wrap="word", height=14)
         self.preview_text.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
         self.preview_text.configure(state="disabled")
+
+    def _on_add_item(self) -> None:
+        name = self.ingredient_entry.get().strip()
+        if not name:
+            messagebox.showerror("Missing Ingredient", "Please enter an ingredient name.")
+            return
+
+        try:
+            quantity = float(self.quantity_entry.get().strip())
+            if quantity <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Invalid Quantity", "Quantity must be a positive number.")
+            return
+
+        unit = Unit(self.unit_combo.get())
+        category = IngredientCategory(self.category_combo.get())
+
+        self.database.add_ingredient(
+            pantry=self.pantry,
+            name=name,
+            quantity=quantity,
+            unit=unit,
+            category=category,
+        )
+        self._refresh_pantry_table()
+        self.ingredient_entry.delete(0, tk.END)
+        self.quantity_entry.delete(0, tk.END)
+
+    def _on_remove_selected(self) -> None:
+        selected_ids = self.pantry_table.selection()
+        if not selected_ids:
+            messagebox.showinfo("No Selection", "Select a pantry item to remove.")
+            return
+
+        selected_item = self.pantry_table.item(selected_ids[0])
+        ingredient_name = str(selected_item["values"][0])
+        self.pantry.remove_item(ingredient_name)
+        self.database.save_pantry(self.pantry)
+        self._refresh_pantry_table()
+
+    def _on_clear_pantry(self) -> None:
+        self.pantry = Pantry()
+        self.database.save_pantry(self.pantry)
+        self._refresh_pantry_table()
+
+    def _on_save_pantry(self) -> None:
+        self.database.save_pantry(self.pantry)
+        messagebox.showinfo("Pantry Saved", "Pantry saved to pantry.json.")
+
+    def _on_load_pantry(self) -> None:
+        self.pantry = self.database.load_pantry()
+        self._refresh_pantry_table()
+        messagebox.showinfo("Pantry Loaded", "Pantry loaded from pantry.json.")
+
+    def _refresh_pantry_table(self) -> None:
+        for item_id in self.pantry_table.get_children():
+            self.pantry_table.delete(item_id)
+
+        for pantry_item in sorted(self.pantry.list_items(), key=lambda item: item.ingredient.name.lower()):
+            self.pantry_table.insert(
+                "",
+                "end",
+                values=(
+                    pantry_item.ingredient.name,
+                    pantry_item.quantity,
+                    pantry_item.unit.value,
+                    pantry_item.ingredient.category.value,
+                ),
+            )
 
 if __name__ == "__main__":
     root = tk.Tk()
