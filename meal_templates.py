@@ -7,6 +7,7 @@ from typing import List
 from backend import (
     Difficulty,
     IngredientCategory,
+    MealType,
     Pantry,
     PantryItem,
     Recipe,
@@ -27,6 +28,7 @@ class MealRecommendation:
     matched_slots: int
     total_slots: int
     missing_categories: List[IngredientCategory]
+    is_ai_generated: bool = False
 
 
 class MealTemplate(ABC):
@@ -109,6 +111,7 @@ class GrainVegBowlTemplate(MealTemplate):
             ],
             difficulty=Difficulty.EASY,
             estimated_time_minutes=20,
+            meal_type=MealType.LUNCH,
         )
 
 
@@ -130,6 +133,7 @@ class ProteinPlateTemplate(MealTemplate):
             ],
             difficulty=Difficulty.EASY,
             estimated_time_minutes=30,
+            meal_type=MealType.DINNER,
         )
 
 
@@ -152,6 +156,7 @@ class BreakfastBowlTemplate(MealTemplate):
             ],
             difficulty=Difficulty.EASY,
             estimated_time_minutes=10,
+            meal_type=MealType.BREAKFAST,
         )
 
 
@@ -174,4 +179,5 @@ class StirFryTemplate(MealTemplate):
             ],
             difficulty=Difficulty.MEDIUM,
             estimated_time_minutes=35,
+            meal_type=MealType.DINNER,
         )
