@@ -181,3 +181,183 @@ class StirFryTemplate(MealTemplate):
             estimated_time_minutes=35,
             meal_type=MealType.DINNER,
         )
+class PastaTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.GRAIN, 1),
+            TemplateRequirement(IngredientCategory.VEGETABLE, 2),
+            TemplateRequirement(IngredientCategory.PROTEIN, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Pasta Bowl",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Cook the pasta until al dente.",
+                "Cook the protein and saute the vegetables.",
+                "Combine everything together and season to taste.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=25,
+            meal_type=MealType.DINNER,
+        )
+
+
+class SoupTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.VEGETABLE, 2),
+            TemplateRequirement(IngredientCategory.PROTEIN, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Soup",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Chop and prep all ingredients.",
+                "Simmer the vegetables and protein together in a pot until cooked through.",
+                "Season and serve hot.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=30,
+            meal_type=MealType.LUNCH,
+        )
+
+
+class YogurtParfaitTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.DAIRY, 1),
+            TemplateRequirement(IngredientCategory.FRUIT, 2),
+            TemplateRequirement(IngredientCategory.GRAIN, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Yogurt Parfait",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Spoon the dairy base into a bowl or cup.",
+                "Layer the fruit and grain on top.",
+                "Serve immediately.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=5,
+            meal_type=MealType.BREAKFAST,
+        )
+
+
+class SaladTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.VEGETABLE, 2),
+            TemplateRequirement(IngredientCategory.PROTEIN, 1),
+            TemplateRequirement(IngredientCategory.FRUIT, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Salad Bowl",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Prep and chop all ingredients.",
+                "Cook the protein if needed.",
+                "Toss everything together and serve fresh.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=15,
+            meal_type=MealType.LUNCH,
+        )
+
+
+class WrapTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.GRAIN, 1),
+            TemplateRequirement(IngredientCategory.PROTEIN, 1),
+            TemplateRequirement(IngredientCategory.VEGETABLE, 2),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Wrap",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Prepare the filling ingredients.",
+                "Warm the grain base if needed.",
+                "Assemble everything into a wrap and serve.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=15,
+            meal_type=MealType.LUNCH,
+        )
+
+
+class SmoothieTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.FRUIT, 2),
+            TemplateRequirement(IngredientCategory.DAIRY, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Smoothie",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Add all ingredients to a blender.",
+                "Blend until smooth.",
+                "Pour into a glass and serve cold.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=5,
+            meal_type=MealType.BREAKFAST,
+        )
+
+
+class RiceAndBeansTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.GRAIN, 1),
+            TemplateRequirement(IngredientCategory.PROTEIN, 1),
+            TemplateRequirement(IngredientCategory.VEGETABLE, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Rice and Protein Bowl",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Cook the grain until tender.",
+                "Cook or warm the protein and vegetable.",
+                "Serve everything together in a bowl.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=20,
+            meal_type=MealType.DINNER,
+        )
+
+
+class SnackPlateTemplate(MealTemplate):
+    def requirements(self) -> List[TemplateRequirement]:
+        return [
+            TemplateRequirement(IngredientCategory.PROTEIN, 1),
+            TemplateRequirement(IngredientCategory.FRUIT, 1),
+            TemplateRequirement(IngredientCategory.DAIRY, 1),
+        ]
+
+    def build_recipe(self, selected_items: List[PantryItem]) -> Recipe:
+        return Recipe(
+            name="Simple Snack Plate",
+            ingredients=self._recipe_ingredients_from_items(selected_items),
+            steps=[
+                "Prep the ingredients if needed.",
+                "Arrange everything on a plate or board.",
+                "Serve immediately.",
+            ],
+            difficulty=Difficulty.EASY,
+            estimated_time_minutes=5,
+            meal_type=MealType.SNACK,
+        )
