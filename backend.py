@@ -7,6 +7,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from app_paths import data_path
+
 
 class Unit(Enum):
     COUNT = "count"
@@ -23,6 +25,13 @@ class Difficulty(Enum):
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
+
+
+class MealType(Enum):
+    BREAKFAST = "Breakfast"
+    LUNCH = "Lunch"
+    DINNER = "Dinner"
+    SNACK = "Snack"
 
 
 class IngredientCategory(Enum):
@@ -173,7 +182,7 @@ class Pantry:
 
 class PantryDatabase:
     def __init__(self, file_path: str = "pantry.json") -> None:
-        self.file_path = Path(file_path)
+        self.file_path = data_path(file_path) if file_path == "pantry.json" else Path(file_path)
 
     def add_ingredient(
         self,
@@ -282,6 +291,7 @@ class Recipe:
     steps: List[str]
     difficulty: Difficulty
     estimated_time_minutes: int
+    meal_type: MealType
 
     def match_rate(self, pantry: Pantry) -> float:
         if not self.ingredients:
@@ -313,11 +323,27 @@ class Recipe:
 
 from meal_templates import (
     BreakfastBowlTemplate,
+    CurryTemplate,
+    DessertBowlTemplate,
+    FlatbreadTemplate,
     GrainVegBowlTemplate,
     MealRecommendation,
     MealTemplate,
+    OnePotMealTemplate,
+    PastaTemplate,
     ProteinPlateTemplate,
+    RiceAndBeansTemplate,
+    SaladTemplate,
+    SandwichTemplate,
+    ScrambleTemplate,
+    SmoothieTemplate,
+    SnackPlateTemplate,
     StirFryTemplate,
+    SoupTemplate,
+    StewTemplate,
+    TacoBowlTemplate,
+    WrapTemplate,
+    YogurtParfaitTemplate,
 )
 
 
@@ -328,10 +354,55 @@ class MealGenerator:
             ProteinPlateTemplate(),
             BreakfastBowlTemplate(),
             StirFryTemplate(),
+            PastaTemplate(),
+            SoupTemplate(),
+            YogurtParfaitTemplate(),
+            SaladTemplate(),
+            WrapTemplate(),
+            SmoothieTemplate(),
+            RiceAndBeansTemplate(),
+            SnackPlateTemplate(),
+            OnePotMealTemplate(),
+            TacoBowlTemplate(),
+            ScrambleTemplate(),
+            FlatbreadTemplate(),
+            SandwichTemplate(),
+            CurryTemplate(),
+            StewTemplate(),
+            DessertBowlTemplate(),
         ]
 
-    def generate_top_meals(self, pantry: Pantry, limit: int = 3) -> List[MealRecommendation]:
+    def generate_top_meals(
+        self,
+        pantry: Pantry,
+        limit: int = 3,
+        meal_type: Optional[str] = None,
+        max_prep_time_minutes: Optional[int] = None,
+        match_preference: str = "All",
+    ) -> List[MealRecommendation]:
         recommendations = [template.generate_recommendation(pantry) for template in self.templates]
+        normalized_meal_type = (meal_type or "").strip().lower()
+
+        if normalized_meal_type and normalized_meal_type != "any":
+            recommendations = [
+                recommendation
+                for recommendation in recommendations
+                if recommendation.recipe.meal_type.value.lower() == normalized_meal_type
+            ]
+
+        if max_prep_time_minutes is not None:
+            recommendations = [
+                recommendation
+                for recommendation in recommendations
+                if recommendation.recipe.estimated_time_minutes <= max_prep_time_minutes
+            ]
+
+        recommendations = [
+            recommendation
+            for recommendation in recommendations
+            if self.matches_preference(recommendation, match_preference)
+        ]
+
         recommendations.sort(
             key=lambda recommendation: (
                 recommendation.match_rate,
@@ -342,3 +413,18 @@ class MealGenerator:
             reverse=True,
         )
         return recommendations[:limit]
+
+    @staticmethod
+    def matches_preference(recommendation: MealRecommendation, match_preference: Optional[str]) -> bool:
+        normalized_preference = (match_preference or "all").strip().lower()
+
+        if recommendation.total_slots <= 0:
+            return False
+
+        if normalized_preference == "full":
+            return recommendation.matched_slots == recommendation.total_slots
+
+        if normalized_preference == "partial":
+            return 0 < recommendation.matched_slots < recommendation.total_slots
+
+        return recommendation.matched_slots > 0

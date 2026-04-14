@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from backend import Difficulty, Pantry, Recipe, RecipeIngredient
+from app_paths import resource_path
+from backend import Difficulty, MealType, Pantry, Recipe, RecipeIngredient
 from meal_templates import MealRecommendation
 
 try:
@@ -28,7 +29,13 @@ class LocalLlamaRecipeGenerator:
         self.config = config or LocalLlamaConfig()
         self._client: Any = None
 
-    def generate_recipe(self, pantry: Pantry) -> Optional[MealRecommendation]:
+    def generate_recipe(
+        self,
+        pantry: Pantry,
+        meal_type: Optional[str] = None,
+        max_prep_time_minutes: Optional[int] = None,
+        match_preference: Optional[str] = None,
+    ) -> Optional[MealRecommendation]:
         if not pantry.list_items():
             return None
 
@@ -48,7 +55,12 @@ class LocalLlamaRecipeGenerator:
                     },
                     {
                         "role": "user",
-                        "content": self._build_prompt(pantry),
+                        "content": self._build_prompt(
+                            pantry,
+                            meal_type=meal_type,
+                            max_prep_time_minutes=max_prep_time_minutes,
+                            match_preference=match_preference,
+                        ),
                     },
                 ],
                 temperature=self.config.temperature,
@@ -63,7 +75,11 @@ class LocalLlamaRecipeGenerator:
         if recipe_payload is None:
             return None
 
-        return self._build_recommendation(recipe_payload, pantry)
+        return self._build_recommendation(
+            recipe_payload,
+            pantry,
+            meal_type=meal_type,
+        )
 
     def is_available(self) -> bool:
         return self._get_client() is not None
@@ -110,12 +126,12 @@ class LocalLlamaRecipeGenerator:
     def _resolve_model_path(self) -> Optional[Path]:
         model_path = self.config.model_path
         if not model_path.is_absolute():
-            model_path = Path(__file__).resolve().parent / model_path
+            model_path = resource_path(str(model_path))
 
         if model_path.exists():
             return model_path
 
-        models_dir = Path(__file__).resolve().parent / "models"
+        models_dir = resource_path("models")
         if not models_dir.exists():
             return None
 
@@ -129,7 +145,13 @@ class LocalLlamaRecipeGenerator:
 
         return None
 
-    def _build_prompt(self, pantry: Pantry) -> str:
+    def _build_prompt(
+        self,
+        pantry: Pantry,
+        meal_type: Optional[str] = None,
+        max_prep_time_minutes: Optional[int] = None,
+        match_preference: Optional[str] = None,
+    ) -> str:
         pantry_lines = []
         for item in sorted(pantry.list_items(), key=lambda pantry_item: pantry_item.ingredient.name.lower()):
             pantry_lines.append(
@@ -138,12 +160,20 @@ class LocalLlamaRecipeGenerator:
             )
 
         pantry_text = "\n".join(pantry_lines)
+        meal_type_text = meal_type.strip() if meal_type and meal_type.strip() and meal_type != "Any" else "Any"
+        prep_time_text = (
+            f"{max_prep_time_minutes} minutes"
+            if max_prep_time_minutes is not None
+            else "No specific limit"
+        )
+        match_preference_text = (match_preference or "All").strip() or "All"
 
         return (
             "Create one practical home recipe from this pantry.\n"
             "Use only ingredient names that appear exactly in the pantry list.\n"
             "Do not invent ingredients.\n"
             "Choose between 2 and 6 pantry ingredients.\n"
+            "Follow the requested meal preferences when possible.\n"
             "Return JSON only with this exact shape:\n"
             "{\n"
             '  "name": "Recipe name",\n'
@@ -157,6 +187,14 @@ class LocalLlamaRecipeGenerator:
             "- steps must be concise and realistic\n"
             "- difficulty must be one of: easy, medium, hard\n"
             "- estimated_time_minutes must be an integer\n"
+            "- estimated_time_minutes should respect the requested max prep time when possible\n"
+            "Preferences:\n"
+            f"- Meal type: {meal_type_text}\n"
+            f"- Max prep time: {prep_time_text}\n"
+            f"- Match preference: {match_preference_text}\n"
+            "- If match preference is Full, make the recipe strongly aligned to the filters and pantry.\n"
+            "- If match preference is Partial, it is okay to use a smaller subset of pantry ingredients.\n"
+            "- If match preference is All, any practical pantry-based match is acceptable.\n"
             "Pantry:\n"
             f"{pantry_text}\n"
         )
@@ -188,6 +226,7 @@ class LocalLlamaRecipeGenerator:
         self,
         recipe_payload: Dict[str, Any],
         pantry: Pantry,
+        meal_type: Optional[str] = None,
     ) -> Optional[MealRecommendation]:
         recipe_name = str(recipe_payload.get("name", "")).strip()
         if not recipe_name:
@@ -239,6 +278,7 @@ class LocalLlamaRecipeGenerator:
             steps=steps,
             difficulty=difficulty,
             estimated_time_minutes=estimated_time_minutes,
+            meal_type=self._parse_meal_type(meal_type),
         )
         return MealRecommendation(
             recipe=recipe,
@@ -263,3 +303,10 @@ class LocalLlamaRecipeGenerator:
             return 20
 
         return max(parsed, 5)
+
+    def _parse_meal_type(self, value: Optional[str]) -> MealType:
+        normalized = (value or "").strip().lower()
+        for meal_type in MealType:
+            if meal_type.value.lower() == normalized:
+                return meal_type
+        return MealType.DINNER

@@ -7,6 +7,8 @@ from llm_generator import LocalLlamaRecipeGenerator
 
 
 class What2EatCleanGUI:
+    MAX_RECIPE_OUTPUTS = 6
+
     BACKGROUND = "#f5f1ea"
     SURFACE = "#fffdf8"
     SURFACE_ALT = "#f0e7db"
@@ -297,9 +299,11 @@ class What2EatCleanGUI:
         filter_box.grid(row=2, column=0, sticky="ew", pady=(14, 16))
         filter_box.columnconfigure(0, weight=1)
         filter_box.columnconfigure(1, weight=1)
+        filter_box.columnconfigure(2, weight=1)
 
         ttk.Label(filter_box, text="Meal Type", style="PanelText.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(filter_box, text="Max Prep Time (minutes)", style="PanelText.TLabel").grid(row=0, column=1, sticky="w")
+        ttk.Label(filter_box, text="Match Preference", style="PanelText.TLabel").grid(row=0, column=2, sticky="w")
 
         self.meal_type_combo = ttk.Combobox(
             filter_box,
@@ -311,8 +315,17 @@ class What2EatCleanGUI:
         self.meal_type_combo.set("Any")
 
         self.prep_time_entry = ttk.Entry(filter_box)
-        self.prep_time_entry.grid(row=1, column=1, sticky="ew", pady=(6, 0))
+        self.prep_time_entry.grid(row=1, column=1, sticky="ew", padx=(0, 8), pady=(6, 0))
         self.prep_time_entry.insert(0, "30")
+
+        self.match_preference_combo = ttk.Combobox(
+            filter_box,
+            state="readonly",
+            style="Filter.TCombobox",
+            values=["Partial", "Full", "All"],
+        )
+        self.match_preference_combo.grid(row=1, column=2, sticky="ew", pady=(6, 0))
+        self.match_preference_combo.set("All")
 
         self.generate_meals_button = ttk.Button(
             parent,
@@ -533,14 +546,16 @@ class What2EatCleanGUI:
             return
 
         meal_type = self.meal_type_combo.get()
+        match_preference = self.match_preference_combo.get()
         self._generation_request_id += 1
         request_id = self._generation_request_id
 
         self.generated_meals = self.meal_generator.generate_top_meals(
             self.pantry,
-            limit=4,
+            limit=self.MAX_RECIPE_OUTPUTS,
             meal_type=meal_type,
             max_prep_time_minutes=max_prep_time,
+            match_preference=match_preference,
         )
 
         self._ai_recipe_loading = True
@@ -555,33 +570,58 @@ class What2EatCleanGUI:
             self.results_list.selection_set(0)
             self._set_preview_text("Loading specialized recipe suggestion...")
 
-        self._start_ai_recipe_generation(request_id, meal_type=meal_type, max_prep_time_minutes=max_prep_time)
+        self._start_ai_recipe_generation(
+            request_id,
+            meal_type=meal_type,
+            max_prep_time_minutes=max_prep_time,
+            match_preference=match_preference,
+        )
 
-    def _start_ai_recipe_generation(self, request_id: int, meal_type: str, max_prep_time_minutes: int | None) -> None:
+    def _start_ai_recipe_generation(
+        self,
+        request_id: int,
+        meal_type: str,
+        max_prep_time_minutes: int | None,
+        match_preference: str,
+    ) -> None:
         worker = Thread(
             target=self._generate_ai_recipe_worker,
-            args=(request_id, meal_type, max_prep_time_minutes),
+            args=(request_id, meal_type, max_prep_time_minutes, match_preference),
             daemon=True,
         )
         worker.start()
 
-    def _generate_ai_recipe_worker(self, request_id: int, meal_type: str, max_prep_time_minutes: int | None) -> None:
+    def _generate_ai_recipe_worker(
+        self,
+        request_id: int,
+        meal_type: str,
+        max_prep_time_minutes: int | None,
+        match_preference: str,
+    ) -> None:
         recommendation = self.ai_recipe_generator.generate_recipe(
             self.pantry,
             meal_type=meal_type,
             max_prep_time_minutes=max_prep_time_minutes,
+            match_preference=match_preference,
         )
-        self.root.after(0, lambda: self._apply_ai_recipe_result(request_id, recommendation))
+        self.root.after(0, lambda: self._apply_ai_recipe_result(request_id, recommendation, match_preference))
 
-    def _apply_ai_recipe_result(self, request_id: int, recommendation: MealRecommendation | None) -> None:
+    def _apply_ai_recipe_result(
+        self,
+        request_id: int,
+        recommendation: MealRecommendation | None,
+        match_preference: str,
+    ) -> None:
         if request_id != self._generation_request_id:
             return
 
         self._ai_recipe_loading = False
 
-        if recommendation is not None:
+        if recommendation is not None and self.meal_generator.matches_preference(recommendation, match_preference):
             self.generated_meals = [meal for meal in self.generated_meals if not meal.is_ai_generated]
             self.generated_meals.insert(0, recommendation)
+
+        self.generated_meals = self.generated_meals[: self.MAX_RECIPE_OUTPUTS]
 
         self._refresh_generated_meals_list()
         self._refresh_summary_cards()
